@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-data-engine
+  namespace: default
+  labels:
+    app: market-data-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: market-data-engine
+  template:
+    metadata:
+      labels:
+        app: market-data-engine
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k8s-worker-2
+      containers:
+      - name: market-data-engine
+        image: ghcr.io/asutaka/market-data-pipeline:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP
+          value: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        - name: CLICKHOUSE_CONN
+          value: "Host=chi-clickhouse-cluster-cluster-0-0.clickhouse.svc.cluster.local;Port=8123;User=admin;Password=ClickHouse@123;Database=default"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
