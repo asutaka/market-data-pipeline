@@ -15,7 +15,7 @@ public class MarketWorker : BackgroundService
     {
         _logger = logger;
         _kafkaBootstrap = config["KAFKA_BOOTSTRAP"] ?? "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
-        _clickhouseConnStr = config["CLICKHOUSE_CONN"] ?? "Host=chi-clickhouse-cluster-cluster-0-0.clickhouse.svc.cluster.local;Port=8123;User=admin;Password=ClickHouse@123;Database=default";
+        _clickhouseConnStr = config["CLICKHOUSE_CONN"] ?? "Host=clickhouse-clickhouse-cluster.clickhouse.svc.cluster.local;Port=8123;User=admin;Password=ClickHouse@123;Database=default";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -70,46 +70,57 @@ public class MarketWorker : BackgroundService
 
     private async Task RunConsumerAsync(CancellationToken ct)
     {
-        // Cho producer chay truoc 2 giay de topic co san du lieu
-        await Task.Delay(2000, ct);
-
-        var config = new ConsumerConfig
+        try
         {
-            BootstrapServers = _kafkaBootstrap,
-            GroupId = "candle-aggregator-group",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = true
-        };
+            // Cho producer chay truoc 2 giay de topic co san du lieu
+            await Task.Delay(2000, ct);
 
-        using var consumer = new ConsumerBuilder<string, string>(config).Build();
-        consumer.Subscribe(Topic);
+            _logger.LogInformation("📥 [Consumer] Initializing Kafka Consumer and connecting to ClickHouse...");
+            _logger.LogInformation("📍 ClickHouse Conn: {Conn}", _clickhouseConnStr);
 
-        using var connection = new ClickHouseConnection(_clickhouseConnStr);
-        await connection.OpenAsync(ct);
-
-        while (!ct.IsCancellationRequested)
-        {
-            try
+            var config = new ConsumerConfig
             {
-                var cr = consumer.Consume(TimeSpan.FromSeconds(2));
-                if (cr?.Message?.Value != null)
-                {
-                    var tick = JsonSerializer.Deserialize<MarketTick>(cr.Message.Value);
-                    if (tick != null)
-                    {
-                        using var cmd = connection.CreateCommand();
-                        cmd.CommandText = $"INSERT INTO stock_candles (symbol, time, open, high, low, close, volume) VALUES ('{tick.Symbol}', now(), {tick.Price}, {tick.Price}, {tick.Price}, {tick.Price}, {tick.Volume})";
-                        await cmd.ExecuteNonQueryAsync(ct);
+                BootstrapServers = _kafkaBootstrap,
+                GroupId = "candle-aggregator-group",
+                AutoOffsetReset = AutoOffsetReset.Earliest,
+                EnableAutoCommit = true
+            };
 
-                        _logger.LogInformation("💾 [ClickHousezzz] Saved Candle: {Symbol} Price={Price} Vol={Vol}", tick.Symbol, tick.Price, tick.Volume);
+            using var consumer = new ConsumerBuilder<string, string>(config).Build();
+            consumer.Subscribe(Topic);
+
+            using var connection = new ClickHouseConnection(_clickhouseConnStr);
+            await connection.OpenAsync(ct);
+            _logger.LogInformation("✅ [Consumer] Connected to ClickHouse successfully!");
+
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    var cr = consumer.Consume(TimeSpan.FromSeconds(2));
+                    if (cr?.Message?.Value != null)
+                    {
+                        var tick = JsonSerializer.Deserialize<MarketTick>(cr.Message.Value);
+                        if (tick != null)
+                        {
+                            using var cmd = connection.CreateCommand();
+                            cmd.CommandText = $"INSERT INTO stock_candles (symbol, time, open, high, low, close, volume) VALUES ('{tick.Symbol}', now(), {tick.Price}, {tick.Price}, {tick.Price}, {tick.Price}, {tick.Volume})";
+                            await cmd.ExecuteNonQueryAsync(ct);
+
+                            _logger.LogInformation("💾 [ClickHouse] Saved Candle: {Symbol} Price={Price} Vol={Vol}", tick.Symbol, tick.Price, tick.Volume);
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Consumer warning: {Msg}", ex.Message);
+                    await Task.Delay(2000, ct);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Consumer warning: {Msg}", ex.Message);
-                await Task.Delay(2000, ct);
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ [Consumer] Fatal error in Consumer: {Msg}", ex.Message);
         }
     }
 }
