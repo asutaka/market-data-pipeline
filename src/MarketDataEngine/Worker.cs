@@ -101,7 +101,7 @@ public class MarketWorker : BackgroundService
                         cmd.CommandText = $"INSERT INTO stock_candles (symbol, time, open, high, low, close, volume) VALUES ('{tick.Symbol}', now(), {tick.Price}, {tick.Price}, {tick.Price}, {tick.Price}, {tick.Volume})";
                         await cmd.ExecuteNonQueryAsync(ct);
 
-                        _logger.LogInformation("💾 [ClickHouse] Saved Candle: {Symbol} Price={Price} Vol={Vol}", tick.Symbol, tick.Price, tick.Volume);
+                        _logger.LogInformation("💾 [ClickHousezzz] Saved Candle: {Symbol} Price={Price} Vol={Vol}", tick.Symbol, tick.Price, tick.Volume);
                     }
                 }
             }
