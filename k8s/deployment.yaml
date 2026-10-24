@@ -19,7 +19,7 @@ spec:
         kubernetes.io/hostname: k8s-worker-2
       containers:
       - name: market-data-engine
-        image: ghcr.io/asutaka/market-data-pipeline:ea4be3246001d4d5d7dfb49bc894084191178914
+        image: ghcr.io/asutaka/market-data-pipeline:f0f355096843c54eeb4c603e43cc465aa6b34af9
         imagePullPolicy: Always
         env:
         - name: KAFKA_BOOTSTRAP
