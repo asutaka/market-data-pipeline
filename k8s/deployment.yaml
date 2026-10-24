@@ -25,7 +25,7 @@ spec:
         - name: KAFKA_BOOTSTRAP
           value: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
         - name: CLICKHOUSE_CONN
-          value: "Host=chi-clickhouse-cluster-cluster-0-0.clickhouse.svc.cluster.local;Port=8123;User=admin;Password=ClickHouse@123;Database=default"
+          value: "Host=clickhouse-clickhouse-cluster.clickhouse.svc.cluster.local;Port=8123;User=admin;Password=ClickHouse@123;Database=default"
         resources:
           requests:
             memory: "128Mi"
